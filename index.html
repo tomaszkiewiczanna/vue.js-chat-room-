@@ -3,8 +3,10 @@
 <head>
   <title>Vue School Chat Room</title>
   <script src="https://unpkg.com/vue"></script>
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
   <script src="https://www.gstatic.com/firebasejs/5.7.0/firebase.js"></script>
+  <script src="https://unpkg.com/native-toast@1.2.1/dist/native-toast.js"></script>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/native-toast@1.2.1/dist/native-toast.css">
 </head>
 <body>
 <div id="chat" class="container">
@@ -89,11 +91,23 @@ var config = {
     created (){
       messagesRef.on('child_added', snapshot => {
         this.messages.push({...snapshot.val(), id: snapshot.key})
-      }),
-       messagesRef.on('child_removed', snapshot => {
+        if (snapshot.val().nickname !== this.nickname) {
+          nativeToast({
+              message: `New message by ${snapshot.val().nickname}`,
+              type: 'success'
+          })
+        }
+      })
+      messagesRef.on('child_removed', snapshot => {
         const deletedMessage = this.messages.find(message => message.id === snapshot.key)
         const index = this.messages.indexOf(deletedMessage)
         this.messages.splice(index, 1)
+        if (snapshot.val().nickname !== this.nickname) {
+          nativeToast({
+              message: `Message deleted by ${snapshot.val().nickname}`,
+              type: 'warning'
+          })
+        }
       })
       messagesRef.on('child_changed', snapshot => {
         const updatedMessage = this.messages.find(message => message.id === snapshot.key)
