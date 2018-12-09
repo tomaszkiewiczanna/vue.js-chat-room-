@@ -4,6 +4,7 @@
   <title>Vue School Chat Room</title>
   <script src="https://unpkg.com/vue"></script>
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+  <script src="https://www.gstatic.com/firebasejs/5.7.0/firebase.js"></script>
 </head>
 <body>
 <div id="chat" class="container">
@@ -14,13 +15,22 @@
       <!-- nickname -->
       <h6 class="card-subtitle mb-2 text-muted">{{ message.nickname }}</h6>
       <!-- content -->
-      <p class="card-text">{{ message.text }}</p>
+      <p v-if="message !== editingMessage" class="card-text">{{ message.text }}</p>
+      <textarea v-else v-model="messageText" class="form-control"></textarea>
+      <div v-if="message !== editingMessage">
+        <a @click.prevent="deleteMessage(message)" href="#" class="card-link">delete</a>
+        <a @click.prevent="editMessage(message)" href="#" class="card-link">edit</a>
+      </div>
+      <div v-else>
+        <a @click.prevent="cancelEditing" href="#" class="card-link">cancel</a>
+        <a @click.prevent="updateMessage" href="#" class="card-link">update</a>
+      </div>
     </div>
   </div>
 
   <hr>
   <!-- New Message -->
-  <form @submit.prevent="storeMessage">
+  <form v-if="!editingMessage" @submit.prevent="storeMessage">
     <div class="form-group">
       <label>Message:</label>
       <textarea v-model="messageText" class="form-control"></textarea>
@@ -35,18 +45,66 @@
 
 
 <script type="text/javascript">
+var config = {
+    apiKey: "AIzaSyDSC9FHIAuBTDFPwbwSPZWA0jahlBYjfFc",
+    authDomain: "vue-chat-room-50592.firebaseapp.com",
+    databaseURL: "https://vue-chat-room-50592.firebaseio.com",
+    projectId: "vue-chat-room-50592",
+    storageBucket: "vue-chat-room-50592.appspot.com",
+    messagingSenderId: "74384955429"
+  };
+  firebase.initializeApp(config);
+  const database = firebase.database()
+  const messagesRef = database.ref('messages')
+
   new Vue({
     el: "#chat",
     data: {
       messages: [],
       messageText: '',
-      nickname: 'hootlex'
+      nickname: 'Pampo',
+      editingMessage: null
     },
     methods: {
       storeMessage () {
-        this.messages.push({text: this.messageText, nickname: this.nickname})
+        messagesRef.push({text: this.messageText, nickname: this.nickname})
         this.messageText = ''
+      },
+      deleteMessage (message) {
+        messagesRef.child(message.id).remove()
+      },
+      editMessage (message) {
+        this.editingMessage = message
+        this.messageText = message.text
+      },
+      cancelEditing () {
+        this.editingMessage = null
+        this.messageText = ''
+      },
+      updateMessage () {
+        messagesRef.child(this.editingMessage.id).update({text: this.messageText})
+        this.cancelEditing()
       }
+    },
+    created (){
+      messagesRef.on('child_added', snapshot => {
+        this.messages.push({...snapshot.val(), id: snapshot.key})
+      }),
+       messagesRef.on('child_removed', snapshot => {
+        const deletedMessage = this.messages.find(message => message.id === snapshot.key)
+        const index = this.messages.indexOf(deletedMessage)
+        this.messages.splice(index, 1)
+      })
+      messagesRef.on('child_changed', snapshot => {
+        const updatedMessage = this.messages.find(message => message.id === snapshot.key)
+        updatedMessage.text = snapshot.val().text
+        if (snapshot.val().nickname !== this.nickname) {
+          nativeToast({
+              message: `Message edited by ${snapshot.val().nickname}`,
+              type: 'info'
+          })
+        }
+      })
     }
   })
 </script>
